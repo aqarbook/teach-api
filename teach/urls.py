@@ -19,6 +19,8 @@ urlpatterns = [
 
     # We intentionally don't want these under /api/, as they
     # have a different CORS policy than the rest of the API.
+
+
     url(r'^auth/persona$',
         'teach.views.persona_assertion_to_api_token'),
     url(r'^auth/status$',
@@ -39,6 +41,9 @@ urlpatterns = [
     url(r'^$', RedirectView.as_view(url='/api/', permanent=False)),
     url(r'', include('django_browserid.urls')),
     url(r'^admin/', include(teach_admin.urls)),
+
+    url(r'^credly/', include('credly.urls')),
+
 ]
 
 if settings.IDAPI_ENABLE_FAKE_OAUTH2:
