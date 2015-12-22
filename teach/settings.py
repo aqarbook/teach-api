@@ -62,12 +62,10 @@ SECRET_KEY = os.environ['SECRET_KEY']
 
 #read credly API key and app secret key from env
 
+CREDLY_API_KEY = os.environ['CREDLY_API_KEY'] if "CREDLY_API_KEY" in os.environ else ''
 
-if "CREDLY_API_KEY" in os.environ:
-    CREDLY_API_KEY = os.environ['CREDLY_API_KEY']
+CREDLY_APP_SECRET = os.environ['CREDLY_APP_SECRET'] if "CREDLY_APP_SECRET" in os.environ else ''
 
-if "CREDLY_APP_SECRET" in os.environ:
-    CREDLY_APP_SECRET = os.environ['CREDLY_APP_SECRET']
 
 
 DEBUG = TEMPLATE_DEBUG = 'DEBUG' in os.environ
