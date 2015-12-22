@@ -60,6 +60,11 @@ if 'DEFAULT_FROM_EMAIL' in os.environ:
 
 SECRET_KEY = os.environ['SECRET_KEY']
 
+#read credly API key and app secret key from env
+CREDLY_API_KEY = os.environ['CREDLY_API_KEY']
+CREDLY_APP_SECRET = os.environ['CREDLY_APP_SECRET']
+
+
 DEBUG = TEMPLATE_DEBUG = 'DEBUG' in os.environ
 
 PORT = int(os.environ['PORT'])
@@ -107,6 +112,7 @@ INSTALLED_APPS = (
     'rest_framework.authtoken',
     'clubs',
     'groups',
+    'credly',
 )
 
 if IDAPI_ENABLE_FAKE_OAUTH2:
