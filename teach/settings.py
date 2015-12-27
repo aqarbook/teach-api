@@ -66,6 +66,11 @@ CREDLY_API_KEY = os.environ['CREDLY_API_KEY'] if "CREDLY_API_KEY" in os.environ 
 
 CREDLY_APP_SECRET = os.environ['CREDLY_APP_SECRET'] if "CREDLY_APP_SECRET" in os.environ else ''
 
+CORS_ORIGIN_WHITELIST = (
+    'mozilla-teach.herokuapp.com',
+    'localhost/5000',
+    'localhost/8008'
+)
 
 
 DEBUG = TEMPLATE_DEBUG = 'DEBUG' in os.environ
