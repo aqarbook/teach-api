@@ -107,7 +107,7 @@ class CredlyBadge(CredlyView):
 class CredlyProfile(CredlyView):
     http_method_names = ["get", "post", "delete"]
     route_base = "me"
-    api_sub_paths = ["avatar", "emails", "managed", "managers", "search_managers"]
+    api_sub_paths = ["avatar", "emails", "managed", "managers", "search_managers","badges","created"]
 
 
 class CredlyMemberPadge(CredlyView):
@@ -143,11 +143,9 @@ class CredlyAuthenticate(CredlyView):
         try:
             result = self.build_api_request(**args).post(**request.POST)
             if "token" in result["meta"]:
+                UserCredlyProfile().save_user_token(request.user.id,result["data"])
                 request.session["credly_token"] = result["data"]["token"]
-                user_credly_profile, created = UserCredlyProfile.get_or_create(user_id=request.user.id)
-                user_credly_profile.access_token = result["data"]["token"]
-                user_credly_profile.refresh_token = result["data"]["refresh_token"]
-                user_credly_profile.save()
+
 
         except HttpNotFoundError as error:
             result = {"err": "API not found"}
