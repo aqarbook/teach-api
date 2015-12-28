@@ -67,11 +67,6 @@ CREDLY_API_KEY = os.environ['CREDLY_API_KEY'] if "CREDLY_API_KEY" in os.environ 
 CREDLY_APP_SECRET = os.environ['CREDLY_APP_SECRET'] if "CREDLY_APP_SECRET" in os.environ else ''
 
 
-CORS_ORIGIN_ALLOW_ALL = True
-
-
-
-
 DEBUG = TEMPLATE_DEBUG = 'DEBUG' in os.environ
 
 PORT = int(os.environ['PORT'])
@@ -249,7 +244,8 @@ TEMPLATE_DIRS = (
 )
 
 CORS_ORIGIN_ALLOW_ALL = True
-CORS_URLS_REGEX = r'^/api/.*$'
+CORS_URLS_REGEX = r'^(/api/|/credly/).*$'
+
 
 CORS_API_LOGIN_ORIGINS = os.environ.get(
     'CORS_API_LOGIN_ORIGINS',
