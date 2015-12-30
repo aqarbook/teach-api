@@ -1,10 +1,12 @@
-from credly.models import UserCredlyProfile
+from credly.models import UserCredlyProfile, save_user_token, get_credly_access_token
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.shortcuts import render
 
 # Create your views here.
 
 import base64
+from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from requests.auth import AuthBase
 import slumber
@@ -48,17 +50,40 @@ class CredlyView(View):
     api_auth = None
     api_sub_paths = []
     http_method_names = ["get", "post", "delete"]
+    require_access_token = False
 
     def __init__(self):
         self.credly = slumber.API(self.api_endpoint, auth=ApiAuth(CREDLY_API_KEY, CREDLY_APP_SECRET),
                                   append_slash=False)
 
+
+    @method_decorator(login_required)
+    def dispatch(self, *args, **kwargs):
+        return super(CredlyView, self).dispatch(*args, **kwargs)
+
     def attach_access_token(self, request):
-        if "credly_token" in request.session:
-            if request.method.lower() == "get":
-                request.GET["credly_token"] = request.session["credly_token"]
-            else:
-                request.POST["credly_token"] = request.session["credly_token"]
+
+        # if request.method.lower() == "get":
+        #     request.GET = request.GET.copy()
+        #     request.GET["access_token"] = "5c92f4611cefbcc21873494ce9d981ec2fe955f73d92c9e83e2cf1daf1f289764c564684d52895849169f67760f78c823e77b47d457460b2349d0657873a6e53"
+        # else:
+        #     request.POST = request.POST.copy()
+        #     request.POST["access_token"] = "5c92f4611cefbcc21873494ce9d981ec2fe955f73d92c9e83e2cf1daf1f289764c564684d52895849169f67760f78c823e77b47d457460b2349d0657873a6e53"
+        #
+        # print request.GET
+
+        if self.require_access_token:
+            if hasattr(request.user, "credly_token"):
+                request.user.credly_token = get_credly_access_token(request.user.id)
+
+            if hasattr(request.user, "credly_token"):
+                if request.method.lower() == "get":
+                    request.GET = request.GET.copy()
+                    request.GET["access_token"] = request.user.credly_token
+                else:
+                    request.POST = request.POST.copy()
+                    request.POST["access_token"] = request.user.credly_token
+
 
     def build_api_request(self, **args):
         fun = getattr(self.credly, self.route_base)
@@ -105,6 +130,7 @@ class CredlyBadge(CredlyView):
 
 
 class CredlyProfile(CredlyView):
+    require_access_token = True
     http_method_names = ["get", "post", "delete"]
     route_base = "me"
     api_sub_paths = ["avatar", "emails", "managed", "managers", "search_managers","badges","created"]
@@ -142,10 +168,8 @@ class CredlyAuthenticate(CredlyView):
 
         try:
             result = self.build_api_request(**args).post(**request.POST)
-            if "token" in result["meta"]:
-                UserCredlyProfile().save_user_token(request.user.id,result["data"])
-                request.session["credly_token"] = result["data"]["token"]
-
+            if request.user.is_authenticated():
+                save_user_token(request.user.id,result["data"])
 
         except HttpNotFoundError as error:
             result = {"err": "API not found"}
