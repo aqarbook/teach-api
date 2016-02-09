@@ -57,7 +57,7 @@ class CredlyView(View):
                                   append_slash=False)
 
 
-    @method_decorator(login_required)
+#    @method_decorator(login_required)
     def dispatch(self, *args, **kwargs):
         return super(CredlyView, self).dispatch(*args, **kwargs)
 
@@ -175,4 +175,5 @@ class CredlyAuthenticate(CredlyView):
             result = {"err": "API not found"}
 
         return JsonResponse(result)
+
 
