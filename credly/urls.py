@@ -4,7 +4,7 @@ from django.views.generic import TemplateView
 
 from . import views
 from credly.views import CredlyAuthenticate, CredlyEvent, CredlyList, CredlyProfile, \
-    CredlyMemberPadge, CredlyEvidance, CredlyBadge, CredlyMember
+    CredlyMemberPadge, CredlyEvidance, CredlyBadge, CredlyMember, MozillaCredly
 
 
 urlpatterns = [
@@ -25,5 +25,7 @@ urlpatterns = [
         csrf_exempt(CredlyEvent.as_view())),
     url(r'^authenticate(?:/(?P<arg1>\w{0,50}))?(?:/(?P<arg2>\w{0,50}))?(?:/(?P<arg3>\w{0,50}))?',
         csrf_exempt(CredlyAuthenticate.as_view())),
+     url(r'^mozilla_badges(?:/(?P<arg1>\w{0,50}))?(?:/(?P<arg2>\w{0,50}))?(?:/(?P<arg3>\w{0,50}))?',
+        csrf_exempt(MozillaCredly.as_view())),
 
 ]

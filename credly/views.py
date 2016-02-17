@@ -16,7 +16,7 @@ from slumber.exceptions import HttpNotFoundError
 
 
 # read credly API key and app secret key from env
-from teach.settings import CREDLY_API_KEY, CREDLY_APP_SECRET
+from teach.settings import CREDLY_API_KEY, CREDLY_APP_SECRET, CREDLY_API_URL
 
 
 class ApiAuth(AuthBase):
@@ -46,7 +46,8 @@ class CredlyView(View):
     credly = None
     route_base = None
     is_public_api = True
-    api_endpoint = "https://api.credly.com/v1.1/"
+    #TODO add creadly endpoint to env so we can test on multiple env
+    api_endpoint = CREDLY_API_URL
     api_auth = None
     api_sub_paths = []
     http_method_names = ["get", "post", "delete"]
@@ -63,30 +64,34 @@ class CredlyView(View):
 
     def attach_access_token(self, request):
 
-        # if request.method.lower() == "get":
-        #     request.GET = request.GET.copy()
-        #     request.GET["access_token"] = "5c92f4611cefbcc21873494ce9d981ec2fe955f73d92c9e83e2cf1daf1f289764c564684d52895849169f67760f78c823e77b47d457460b2349d0657873a6e53"
-        # else:
-        #     request.POST = request.POST.copy()
-        #     request.POST["access_token"] = "5c92f4611cefbcc21873494ce9d981ec2fe955f73d92c9e83e2cf1daf1f289764c564684d52895849169f67760f78c823e77b47d457460b2349d0657873a6e53"
+        if request.method.lower() == "get":
+            request.GET = request.GET.copy()
+            request.GET["access_token"] = "0db5ca0eda70b80ec637e91ea6f509a1f12d5360080a08dbb8d1da56cc971e35da314190cc58406310911357f0131a71ed578f25ebadb058c4b028c2cdd95cb8"
+        else:
+            request.POST = request.POST.copy()
+            request.POST["access_token"] = "0db5ca0eda70b80ec637e91ea6f509a1f12d5360080a08dbb8d1da56cc971e35da314190cc58406310911357f0131a71ed578f25ebadb058c4b028c2cdd95cb8"
+
+
+
+        #TODO this code supposed to work when login is fixed , for testing purpose we user static token
+        # if self.require_access_token:
         #
-        # print request.GET
+        #     if hasattr(request.user, "credly_token"):
+        #         request.user.credly_token = get_credly_access_token(request.user.id)
+        #
+        #     if hasattr(request.user, "credly_token"):
+        #         if request.method.lower() == "get":
+        #             request.GET = request.GET.copy()
+        #             request.GET["access_token"] = request.user.credly_token
+        #         else:
+        #             request.POST = request.POST.copy()
+        #             request.POST["access_token"] = request.user.credly_token
 
-        if self.require_access_token:
-            if hasattr(request.user, "credly_token"):
-                request.user.credly_token = get_credly_access_token(request.user.id)
+    def build_api_request(self,route_base= None, **args ):
 
-            if hasattr(request.user, "credly_token"):
-                if request.method.lower() == "get":
-                    request.GET = request.GET.copy()
-                    request.GET["access_token"] = request.user.credly_token
-                else:
-                    request.POST = request.POST.copy()
-                    request.POST["access_token"] = request.user.credly_token
-
-
-    def build_api_request(self, **args):
-        fun = getattr(self.credly, self.route_base)
+        if not route_base:
+            route_base = self.route_base
+        fun = getattr(self.credly, route_base)
         for key in args.keys():
             if args[key]:
                 if args[key] in self.api_sub_paths:
@@ -98,6 +103,7 @@ class CredlyView(View):
     def get(self, request, **args):
         self.attach_access_token(request)
         try:
+            print args
             result = self.build_api_request(**args).get(**request.GET)
         except HttpNotFoundError as error:
             raise error
@@ -118,6 +124,65 @@ class CredlyView(View):
         return JsonResponse(result)
 
 
+
+class MozillaCredly(CredlyView):
+    http_method_names = ["get"]
+    route_base = "badges"
+    api_sub_paths = ["avatar", "badges", "badges", "given", "created", "categories", "followers", "following",
+                     "trusted"]
+
+
+    def get(self, request, **args):
+
+        #TODO user mozilla user id from env
+        get_data =  request.GET.copy()
+        get_data["member_id"] = 613
+        request.GET = get_data
+        self.attach_access_token(request)
+        try:
+
+            pending_badges_ids = []
+            accepted_badges_ids = []
+
+            result = self.build_api_request(**args).get(**request.GET)
+
+
+            #TODO limit this functionality to logged-in users
+
+            request.GET['page'] = 1
+            request.GET['per_page'] = 1000
+
+            accepted_badges = self.build_api_request(route_base="me",arg1='badges', arg2=None, arg3=None).get(**request.GET)
+            pending_badges = self.build_api_request(route_base="me",arg1='badges', arg2='pending', arg3=None).get(**request.GET)
+
+            if accepted_badges['data']:
+                accepted_badges_ids = [ credit['id'] for credit in accepted_badges['data'] ]
+            if pending_badges['data']:
+                pending_badges_ids = [ credit['id'] for credit in pending_badges['data'] ]
+
+            index = 0
+            for mozilla_credit in result['data']:
+
+                if mozilla_credit['id'] in pending_badges_ids:
+                    result['data'][index]['achived'] = "pending"
+
+                elif mozilla_credit['id'] in accepted_badges_ids:
+                    result['data'][index]['achived'] = "accepted"
+
+                else:
+                    result['data'][index]['achived'] = False
+
+                index += 1
+
+        except HttpNotFoundError as error:
+            raise error
+            result = {"err": "API not found"}
+
+        return JsonResponse(result)
+
+
+
+
 class CredlyMember(CredlyView):
     http_method_names = ["get"]
     route_base = "members"
@@ -128,11 +193,26 @@ class CredlyMember(CredlyView):
 class CredlyBadge(CredlyView):
     route_base = "badges"
 
+    def get(self, request, **args):
+        self.attach_access_token(request)
+
+        try:
+            result = self.build_api_request(**args).get(**request.GET)
+        except HttpNotFoundError as error:
+            raise error
+            result = {"err": "API not found"}
+
+        return JsonResponse(result)
+
+
 
 class CredlyProfile(CredlyView):
     require_access_token = True
     http_method_names = ["get", "post", "delete"]
     route_base = "me"
+
+
+
     api_sub_paths = ["avatar", "emails", "managed", "managers", "search_managers","badges","created"]
 
 

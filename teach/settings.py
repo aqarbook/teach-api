@@ -65,6 +65,7 @@ SECRET_KEY = os.environ['SECRET_KEY']
 CREDLY_API_KEY = os.environ['CREDLY_API_KEY'] if "CREDLY_API_KEY" in os.environ else ''
 
 CREDLY_APP_SECRET = os.environ['CREDLY_APP_SECRET'] if "CREDLY_APP_SECRET" in os.environ else ''
+CREDLY_API_URL = os.environ['CREDLY_API_URL'] if "CREDLY_API_URL" in os.environ else ''
 
 
 DEBUG = TEMPLATE_DEBUG = 'DEBUG' in os.environ
