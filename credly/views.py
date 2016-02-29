@@ -16,7 +16,7 @@ from slumber.exceptions import HttpNotFoundError
 
 
 # read credly API key and app secret key from env
-from teach.settings import CREDLY_API_KEY, CREDLY_APP_SECRET, CREDLY_API_URL
+from teach.settings import CREDLY_API_KEY, CREDLY_APP_SECRET, CREDLY_API_URL, MozillaAccountId
 
 
 class ApiAuth(AuthBase):
@@ -46,7 +46,7 @@ class CredlyView(View):
     credly = None
     route_base = None
     is_public_api = True
-    #TODO add creadly endpoint to env so we can test on multiple env
+
     api_endpoint = CREDLY_API_URL
     api_auth = None
     api_sub_paths = []
@@ -57,35 +57,33 @@ class CredlyView(View):
         self.credly = slumber.API(self.api_endpoint, auth=ApiAuth(CREDLY_API_KEY, CREDLY_APP_SECRET),
                                   append_slash=False)
 
-
-#    @method_decorator(login_required)
+    #un comment this line to limit functionality to logged in users
+    #@method_decorator(login_required)
     def dispatch(self, *args, **kwargs):
         return super(CredlyView, self).dispatch(*args, **kwargs)
 
     def attach_access_token(self, request):
 
-        if request.method.lower() == "get":
-            request.GET = request.GET.copy()
-            request.GET["access_token"] = "0db5ca0eda70b80ec637e91ea6f509a1f12d5360080a08dbb8d1da56cc971e35da314190cc58406310911357f0131a71ed578f25ebadb058c4b028c2cdd95cb8"
-        else:
-            request.POST = request.POST.copy()
-            request.POST["access_token"] = "0db5ca0eda70b80ec637e91ea6f509a1f12d5360080a08dbb8d1da56cc971e35da314190cc58406310911357f0131a71ed578f25ebadb058c4b028c2cdd95cb8"
-
-
-
-        #TODO this code supposed to work when login is fixed , for testing purpose we user static token
-        # if self.require_access_token:
+        # if request.method.lower() == "get":
+        #     request.GET = request.GET.copy()
+        #     request.GET["access_token"] = "0db5ca0eda70b80ec637e91ea6f509a1f12d5360080a08dbb8d1da56cc971e35da314190cc58406310911357f0131a71ed578f25ebadb058c4b028c2cdd95cb8"
+        # else:
+        #     request.POST = request.POST.copy()
+        #     request.POST["access_token"] = "0db5ca0eda70b80ec637e91ea6f509a1f12d5360080a08dbb8d1da56cc971e35da314190cc58406310911357f0131a71ed578f25ebadb058c4b028c2cdd95cb8"
         #
-        #     if hasattr(request.user, "credly_token"):
-        #         request.user.credly_token = get_credly_access_token(request.user.id)
-        #
-        #     if hasattr(request.user, "credly_token"):
-        #         if request.method.lower() == "get":
-        #             request.GET = request.GET.copy()
-        #             request.GET["access_token"] = request.user.credly_token
-        #         else:
-        #             request.POST = request.POST.copy()
-        #             request.POST["access_token"] = request.user.credly_token
+
+
+        if self.require_access_token:
+            if hasattr(request.user, "credly_token"):
+                request.user.credly_token = get_credly_access_token(request.user.id)
+
+            if hasattr(request.user, "credly_token"):
+                if request.method.lower() == "get":
+                    request.GET = request.GET.copy()
+                    request.GET["access_token"] = request.user.credly_token
+                else:
+                    request.POST = request.POST.copy()
+                    request.POST["access_token"] = request.user.credly_token
 
     def build_api_request(self,route_base= None, **args ):
 
@@ -131,55 +129,53 @@ class MozillaCredly(CredlyView):
     api_sub_paths = ["avatar", "badges", "badges", "given", "created", "categories", "followers", "following",
                      "trusted"]
 
-
     def get(self, request, **args):
 
-        #TODO user mozilla user id from env
-        get_data =  request.GET.copy()
-        get_data["member_id"] = 613
+        #set add mozilla id to get query
+        get_data = request.GET.copy()
+        get_data["member_id"] = MozillaAccountId
         request.GET = get_data
         self.attach_access_token(request)
         try:
 
-            pending_badges_ids = []
-            accepted_badges_ids = []
-
+            #get mozilla badges
             result = self.build_api_request(**args).get(**request.GET)
 
+            if request.user.is_authenticated():
 
-            #TODO limit this functionality to logged-in users
+                pending_badges_ids = []
+                accepted_badges_ids = []
 
-            request.GET['page'] = 1
-            request.GET['per_page'] = 1000
+                #change limit to get all user pending and accepted badges
+                request.GET['page'] = 1
+                request.GET['per_page'] = 1000
 
-            accepted_badges = self.build_api_request(route_base="me",arg1='badges', arg2=None, arg3=None).get(**request.GET)
-            pending_badges = self.build_api_request(route_base="me",arg1='badges', arg2='pending', arg3=None).get(**request.GET)
+                #get accepted and pending badges for logged in user
+                accepted_badges = self.build_api_request(route_base="me",arg1='badges', arg2=None, arg3=None).get(**request.GET)
+                pending_badges = self.build_api_request(route_base="me",arg1='badges', arg2='pending', arg3=None).get(**request.GET)
 
-            if accepted_badges['data']:
-                accepted_badges_ids = [ credit['id'] for credit in accepted_badges['data'] ]
-            if pending_badges['data']:
-                pending_badges_ids = [ credit['id'] for credit in pending_badges['data'] ]
+                #extract ids
+                if accepted_badges['data']:
+                    accepted_badges_ids = [ credit['id'] for credit in accepted_badges['data'] ]
+                if pending_badges['data']:
+                    pending_badges_ids = [ credit['id'] for credit in pending_badges['data'] ]
 
-            index = 0
-            for mozilla_credit in result['data']:
-
-                if mozilla_credit['id'] in pending_badges_ids:
-                    result['data'][index]['achived'] = "pending"
-
-                elif mozilla_credit['id'] in accepted_badges_ids:
-                    result['data'][index]['achived'] = "accepted"
-
-                else:
-                    result['data'][index]['achived'] = False
-
-                index += 1
+                #match extracted ids with mozilla badges
+                index = 0
+                for mozilla_credit in result['data']:
+                    if mozilla_credit['id'] in pending_badges_ids:
+                        result['data'][index]['achieved'] = "pending"
+                    elif mozilla_credit['id'] in accepted_badges_ids:
+                        result['data'][index]['achieved'] = "accepted"
+                    else:
+                        result['data'][index]['achieved'] = False
+                    index += 1
 
         except HttpNotFoundError as error:
             raise error
             result = {"err": "API not found"}
 
         return JsonResponse(result)
-
 
 
 
@@ -204,14 +200,10 @@ class CredlyBadge(CredlyView):
 
         return JsonResponse(result)
 
-
-
 class CredlyProfile(CredlyView):
     require_access_token = True
     http_method_names = ["get", "post", "delete"]
     route_base = "me"
-
-
 
     api_sub_paths = ["avatar", "emails", "managed", "managers", "search_managers","badges","created"]
 

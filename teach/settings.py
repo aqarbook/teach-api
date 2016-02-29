@@ -98,6 +98,8 @@ TEACH_STAFF_EMAILS = parse_email_addresses(
     os.environ.get('TEACH_STAFF_EMAILS', '')
 )
 
+MozillaAccountId =  os.environ['MozillaAccountId']
+
 ALLOWED_HOSTS = [urlparse.urlparse(ORIGIN).hostname]
 
 # Application definition
