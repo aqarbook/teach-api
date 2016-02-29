@@ -98,7 +98,7 @@ TEACH_STAFF_EMAILS = parse_email_addresses(
     os.environ.get('TEACH_STAFF_EMAILS', '')
 )
 
-MozillaAccountId =  os.environ['MozillaAccountId']
+MozillaAccountId =  os.environ['MozillaAccountId'] if 'MozillaAccountId' in os.environ else None
 
 ALLOWED_HOSTS = [urlparse.urlparse(ORIGIN).hostname]
 
