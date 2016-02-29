@@ -72,18 +72,14 @@ class CredlyView(View):
         #     request.POST["access_token"] = "0db5ca0eda70b80ec637e91ea6f509a1f12d5360080a08dbb8d1da56cc971e35da314190cc58406310911357f0131a71ed578f25ebadb058c4b028c2cdd95cb8"
         #
 
-
         if self.require_access_token:
-            if hasattr(request.user, "credly_token"):
-                request.user.credly_token = get_credly_access_token(request.user.id)
-
-            if hasattr(request.user, "credly_token"):
+            if "credly_token" in request.session:
                 if request.method.lower() == "get":
                     request.GET = request.GET.copy()
-                    request.GET["access_token"] = request.user.credly_token
+                    request.GET["access_token"] = request.session["credly_token"]
                 else:
                     request.POST = request.POST.copy()
-                    request.POST["access_token"] = request.user.credly_token
+                    request.POST["access_token"] = request.session["credly_token"]
 
     def build_api_request(self,route_base= None, **args ):
 
@@ -188,6 +184,16 @@ class CredlyMember(CredlyView):
                      "trusted"]
 
 
+    def get_user_by_email(self, email):
+        try:
+            member = self.credly.members().get(email=email)
+            print member
+        except Exception as error:
+            member = None
+        return member
+
+
+
 class CredlyBadge(CredlyView):
     route_base = "badges"
 
@@ -239,7 +245,6 @@ class CredlyAuthenticate(CredlyView):
             self.credly = slumber.API(self.api_endpoint,
                                       auth=ApiAuth(CREDLY_API_KEY, CREDLY_APP_SECRET, email=CREDLY_USER_EMAIL,
                                                    password=CREDLY_USER_PASSWORD), append_slash=False)
-
         try:
             result = self.build_api_request(**args).post(**request.POST)
             if request.user.is_authenticated():
@@ -251,3 +256,22 @@ class CredlyAuthenticate(CredlyView):
         return JsonResponse(result)
 
 
+
+    def create_credly_user(self, user ):
+
+        #first check if user already exist
+        members_api = CredlyMember()
+        member = members_api.get_user_by_email(user.email)
+
+        if member:
+            return False
+
+        #if user not exist build request and created new one
+        try:
+            result = self.credly.authenticate().register().post(email=user.email, password=user.password)
+            #save it to credly table
+            save_user_token(user.id,result["data"])
+        except HttpNotFoundError as error:
+            print error
+            pass
+        return True

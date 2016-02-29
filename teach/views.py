@@ -1,5 +1,7 @@
 import json
 import urlparse
+from credly.models import get_credly_access_token
+from credly.views import CredlyAuthenticate
 import django.contrib.auth
 from django.shortcuts import render
 from django.conf import settings
@@ -115,6 +117,20 @@ def oauth2_callback(request):
 
     django.contrib.auth.login(request, user)
 
+    #check if user have credly account
+    credly_token = get_credly_access_token(user.id)
+    if not credly_token:
+
+        #try to create one for him
+        if CredlyAuthenticate().create_credly_user(user):
+            request.session["credly_token"] = get_credly_access_token(request.user.id)
+        else:
+            pass
+            #TODO add flow to handle users who credted accounts on credly by their own
+    else:
+        #add token to session for API calls
+        request.session["credly_token"] = get_credly_access_token(request.user.id)
+
     return HttpResponseRedirect(callback)
 
 def oauth2_logout(request):
@@ -163,6 +179,7 @@ def logout(request):
 
 @require_GET
 def get_status(request):
+
     res = check_origin(request)
     if res is None:
         return HttpResponse('invalid origin', status=403)

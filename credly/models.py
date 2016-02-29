@@ -2,7 +2,7 @@ from django.contrib.auth.models import User
 from django.db import models
 
 # Create your models here.
-
+from django.shortcuts import get_object_or_404
 
 
 class UserCredlyProfile(models.Model):
@@ -27,9 +27,9 @@ def save_user_token(user_id , data):
 def get_credly_access_token(user_id):
 
     #TODO handle if access token is expired
-    user_credly_profile = UserCredlyProfile.objects.get(user_id=user_id)
-    if user_credly_profile:
+    try:
+        user_credly_profile = get_object_or_404(UserCredlyProfile, user_id=user_id)
         return user_credly_profile.access_token
-
-    return None
+    except Exception as error:
+        return None
 
