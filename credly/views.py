@@ -133,13 +133,15 @@ class MozillaCredly(CredlyView):
 
         #set add mozilla id to get query
         get_data = request.GET.copy()
-        get_data["member_id"] = MozillaAccountId
+        get_data["member_id"] = MozillaAccountId #19331
         request.GET = get_data
         self.attach_access_token(request)
         try:
 
             #get mozilla badges
             result = self.build_api_request(**args).get(**request.GET)
+
+            print result
 
             if request.user.is_authenticated():
 
